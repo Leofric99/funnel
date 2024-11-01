@@ -21,20 +21,20 @@ class FilterApp(tk.Tk):
         self.create_widgets()
     
     def create_widgets(self):
-        self.file_label = tk.Label(self, text="No file selected")
-        self.file_label.pack(pady=10)
+        self.file_label = tk.Label(self, text="No file selected", anchor='w')
+        self.file_label.pack(pady=10, fill='x')
 
         self.load_button = tk.Button(self, text="Load File", command=self.load_file)
         self.load_button.pack(pady=10)
 
         self.headings_frame = tk.Frame(self)
-        self.headings_frame.pack(pady=10)
+        self.headings_frame.pack(pady=10, fill='x')
 
         self.filters_frame = tk.Frame(self)
-        self.filters_frame.pack(pady=10)
+        self.filters_frame.pack(pady=10, fill='x')
 
-        self.results_label = tk.Label(self, text="Results: 0")
-        self.results_label.pack(pady=10)
+        self.results_label = tk.Label(self, text="Results: 0", anchor='w')
+        self.results_label.pack(pady=10, fill='x')
 
         self.apply_button = tk.Button(self, text="Export Results", command=self.export_results)
         self.apply_button.pack(pady=10)
@@ -117,13 +117,13 @@ class FilterApp(tk.Tk):
         for widget in self.headings_frame.winfo_children():
             widget.destroy()
 
-        tk.Label(self.headings_frame, text="Select headings and set filters:").pack()
+        tk.Label(self.headings_frame, text="Select headings and set filters:", anchor='w').pack(fill='x')
 
         for heading in self.headings:
             frame = tk.Frame(self.headings_frame)
             frame.pack(fill="x", pady=2)
 
-            label = tk.Label(frame, text=heading, width=20)
+            label = tk.Label(frame, text=heading, width=20, anchor='w')
             label.pack(side="left")
 
             col_type = self.column_types.get(heading, 'string')
@@ -138,7 +138,7 @@ class FilterApp(tk.Tk):
                 slider.pack(side="left", fill="x", expand=True)
                 self.filters.append({'heading': heading, 'type': col_type, 'value': 0, 'condition': condition_var, 'widget': slider})
             else:
-                entry = tk.Entry(frame)
+                entry = tk.Entry(frame, justify='left')
                 entry.pack(side="left", fill="x", expand=True)
                 entry.bind("<KeyRelease>", lambda event, h=heading: self.update_filter_value(h, event.widget.get()))
                 self.filters.append({'heading': heading, 'type': col_type, 'value': '', 'condition': condition_var, 'widget': entry})
