@@ -119,9 +119,34 @@ class FilterApp(tk.Tk):
             raise ValueError("Unsupported file format. Please provide a .json or .csv file.")
 
     def build_headings_menu(self):
+        # Clear previous filter widgets
         for widget in self.headings_frame.winfo_children():
             widget.destroy()
 
+        # Create a new frame to hold canvas and scrollbar
+        if not hasattr(self, 'canvas_frame'):
+            self.canvas_frame = tk.Frame(self)
+            self.canvas_frame.pack(fill="both", expand=True)
+
+            # Create a canvas for scrollable area
+            self.canvas = tk.Canvas(self.canvas_frame, height=300)  # Set desired height for scrollable area
+            self.canvas.pack(side="left", fill="both", expand=True)
+
+            # Add a vertical scrollbar to the canvas
+            self.scrollbar = tk.Scrollbar(self.canvas_frame, orient="vertical", command=self.canvas.yview)
+            self.scrollbar.pack(side="right", fill="y")
+
+            # Configure the canvas to work with the scrollbar
+            self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+            # Create the headings_frame inside the canvas
+            self.headings_frame = tk.Frame(self.canvas)
+            self.canvas.create_window((0, 0), window=self.headings_frame, anchor="nw")
+
+            # Update scroll region when the frame is resized
+            self.headings_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+
+        # Add label and filters
         tk.Label(self.headings_frame, text="Select headings and set filters:", anchor='w').pack(fill='x')
 
         for heading in self.headings:
@@ -147,6 +172,7 @@ class FilterApp(tk.Tk):
                 entry.pack(side="left", fill="x", expand=True)
                 entry.bind("<KeyRelease>", lambda event, h=heading: self.update_filter_value(h, event.widget.get()))
                 self.filters.append({'heading': heading, 'type': col_type, 'value': '', 'condition': condition_var, 'widget': entry})
+
 
     def get_min_max_values(self, heading):
         values = [float(row[heading]) for row in self.data if heading in row and row[heading] != ""]
@@ -199,6 +225,15 @@ class FilterApp(tk.Tk):
     def export_results(self):
         output_file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json"), ("CSV files", "*.csv")])
         if output_file_path:
+            # Apply sorting if a sort field is selected
+            sort_field = self.sort_field_var.get()  # Reference the variable defined in display_results
+            sort_order = self.sort_order_var.get()  # Reference the variable defined in display_results
+            if sort_field:
+                is_numeric = self.column_types.get(sort_field) in ['int', 'float']
+                reverse = sort_order == "Descending"
+                self.filtered_data.sort(key=lambda x: float(x[sort_field]) if is_numeric and x[sort_field] else x[sort_field], reverse=reverse)
+
+            # Export filtered and sorted data
             if output_file_path.endswith('.json'):
                 with open(output_file_path, 'w') as file:
                     json.dump(self.filtered_data, file, indent=4)
@@ -210,22 +245,55 @@ class FilterApp(tk.Tk):
                         writer.writerows(self.filtered_data)
             messagebox.showinfo("Export Results", f"Filtered results saved to '{output_file_path}'")
 
+
     def display_results(self):
         display_window = tk.Toplevel(self)
         display_window.title("Select Fields to Display")
-        display_window.geometry("400x400")
+        display_window.geometry("400x500")
 
+        # Dictionary to store the selection state of each field
         field_vars = {}
         for heading in self.headings:
-            var = tk.BooleanVar(value=True)
+            var = tk.BooleanVar(value=False)  # Set default value to False (unchecked)
             chk = tk.Checkbutton(display_window, text=heading, variable=var)
             chk.pack(anchor='w')
             field_vars[heading] = var
 
-        display_button = tk.Button(display_window, text="Display", command=lambda: self.show_results(field_vars))
+        # Function to tick all fields
+        def tick_all():
+            for var in field_vars.values():
+                var.set(True)
+
+        # Function to untick all fields
+        def tick_none():
+            for var in field_vars.values():
+                var.set(False)
+
+        # Add Tick All and Tick None buttons
+        tick_all_button = tk.Button(display_window, text="Tick All", command=tick_all)
+        tick_all_button.pack(pady=5)
+
+        tick_none_button = tk.Button(display_window, text="Tick None", command=tick_none)
+        tick_none_button.pack(pady=5)
+
+        # Sorting options
+        tk.Label(display_window, text="Sort By:").pack(pady=5)
+        sort_field_var = tk.StringVar(value="")
+        sort_order_var = tk.StringVar(value="Ascending")
+
+        sort_field_menu = ttk.Combobox(display_window, textvariable=sort_field_var, values=[""] + self.headings, state="readonly")
+        sort_field_menu.pack()
+
+        sort_order_menu = ttk.Combobox(display_window, textvariable=sort_order_var, values=["Ascending", "Descending"], state="readonly")
+        sort_order_menu.pack()
+
+        # Display button to show the results with the selected fields and sorting
+        display_button = tk.Button(display_window, text="Display", command=lambda: self.show_results(field_vars, sort_field_var.get(), sort_order_var.get()))
         display_button.pack(pady=10)
 
-    def show_results(self, field_vars):
+
+
+    def show_results(self, field_vars, sort_field, sort_order):
         selected_fields = [field for field, var in field_vars.items() if var.get()]
 
         result_window = tk.Toplevel(self)
@@ -234,6 +302,12 @@ class FilterApp(tk.Tk):
         if not self.filtered_data:
             messagebox.showinfo("Display Results", "No results to display.")
             return
+
+        # Apply sorting if a sort field is selected
+        if sort_field:
+            is_numeric = self.column_types.get(sort_field) in ['int', 'float']
+            reverse = sort_order == "Descending"
+            self.filtered_data.sort(key=lambda x: float(x[sort_field]) if is_numeric and x[sort_field] else x[sort_field], reverse=reverse)
 
         columns = selected_fields
         results = [{k: v for k, v in row.items() if k in selected_fields} for row in self.filtered_data]
@@ -250,6 +324,7 @@ class FilterApp(tk.Tk):
             tree.insert("", "end", values=[row[col] for col in columns])
 
         tree.pack(fill="both", expand=True)
+
 
 if __name__ == "__main__":
     app = FilterApp()
