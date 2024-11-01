@@ -36,9 +36,13 @@ class FilterApp(tk.Tk):
         self.results_label = tk.Label(self, text="Results: 0", anchor='w')
         self.results_label.pack(pady=10, fill='x')
 
-        self.apply_button = tk.Button(self, text="Export Results", command=self.export_results)
-        self.apply_button.pack(pady=10)
-        self.apply_button.config(state=tk.DISABLED)
+        self.save_option_button = tk.Button(self, text="Save Results", command=self.export_results)
+        self.save_option_button.pack(pady=10)
+        self.save_option_button.config(state=tk.DISABLED)
+
+        self.display_option_button = tk.Button(self, text="Display Results", command=self.display_results)
+        self.display_option_button.pack(pady=10)
+        self.display_option_button.config(state=tk.DISABLED)
 
     def load_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json"), ("CSV files", "*.csv")])
@@ -50,7 +54,8 @@ class FilterApp(tk.Tk):
             self.load_data(file_path)
             self.build_headings_menu()
             self.results_label.config(text=f"Results: {len(self.data)}")
-            self.apply_button.config(state=tk.NORMAL)
+            self.save_option_button.config(state=tk.NORMAL)
+            self.display_option_button.config(state=tk.NORMAL)
 
     def get_headings(self, file_path):
         if file_path.endswith('.json'):
@@ -204,6 +209,47 @@ class FilterApp(tk.Tk):
                         writer.writeheader()
                         writer.writerows(self.filtered_data)
             messagebox.showinfo("Export Results", f"Filtered results saved to '{output_file_path}'")
+
+    def display_results(self):
+        display_window = tk.Toplevel(self)
+        display_window.title("Select Fields to Display")
+        display_window.geometry("400x400")
+
+        field_vars = {}
+        for heading in self.headings:
+            var = tk.BooleanVar(value=True)
+            chk = tk.Checkbutton(display_window, text=heading, variable=var)
+            chk.pack(anchor='w')
+            field_vars[heading] = var
+
+        display_button = tk.Button(display_window, text="Display", command=lambda: self.show_results(field_vars))
+        display_button.pack(pady=10)
+
+    def show_results(self, field_vars):
+        selected_fields = [field for field, var in field_vars.items() if var.get()]
+
+        result_window = tk.Toplevel(self)
+        result_window.title("Filtered Results")
+
+        if not self.filtered_data:
+            messagebox.showinfo("Display Results", "No results to display.")
+            return
+
+        columns = selected_fields
+        results = [{k: v for k, v in row.items() if k in selected_fields} for row in self.filtered_data]
+
+        table_frame = tk.Frame(result_window)
+        table_frame.pack(fill="both", expand=True)
+
+        tree = ttk.Treeview(table_frame, columns=columns, show="headings")
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, anchor='w')
+
+        for row in results:
+            tree.insert("", "end", values=[row[col] for col in columns])
+
+        tree.pack(fill="both", expand=True)
 
 if __name__ == "__main__":
     app = FilterApp()
