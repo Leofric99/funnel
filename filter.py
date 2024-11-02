@@ -158,7 +158,7 @@ class FilterApp(tk.Tk):
 
             col_type = self.column_types.get(heading, 'string')
             condition_var = tk.StringVar(value="Any")
-            condition_menu = ttk.Combobox(frame, textvariable=condition_var, values=["Any", "Equals", "Contains", "Less Than", "More Than", "Starts With", "Ends With"])
+            condition_menu = ttk.Combobox(frame, textvariable=condition_var, values=["Any", "Equals", "Not Equal To", "Contains", "Less Than", "More Than", "Starts With", "Ends With"])
             condition_menu.pack(side="left")
             condition_menu.bind("<<ComboboxSelected>>", lambda event, h=heading, var=condition_var: self.update_filter_condition(h, var))
 
@@ -207,6 +207,9 @@ class FilterApp(tk.Tk):
             return str(value).startswith(filter_value)
         elif condition.get() == "Ends With":
             return str(value).endswith(filter_value)
+        elif condition.get() == "Not Equal To":
+            return str(value) != str(filter_value)
+
         return False
 
     def apply_filters(self):
