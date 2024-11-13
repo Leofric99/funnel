@@ -254,11 +254,29 @@ class FilterApp(tk.Tk):
         display_window.title("Select Fields to Display")
         display_window.geometry("400x500")
 
+        # Create a canvas for scrollable area
+        canvas = tk.Canvas(display_window)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        # Add a vertical scrollbar to the canvas
+        scrollbar = tk.Scrollbar(display_window, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+
+        # Configure the canvas to work with the scrollbar
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Create a frame inside the canvas
+        frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=frame, anchor="nw")
+
+        # Update scroll region when the frame is resized
+        frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
         # Dictionary to store the selection state of each field
         field_vars = {}
         for heading in self.headings:
             var = tk.BooleanVar(value=False)  # Set default value to False (unchecked)
-            chk = tk.Checkbutton(display_window, text=heading, variable=var)
+            chk = tk.Checkbutton(frame, text=heading, variable=var)
             chk.pack(anchor='w')
             field_vars[heading] = var
 
